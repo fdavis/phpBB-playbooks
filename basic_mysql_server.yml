@@ -34,3 +34,7 @@
   # make database
   - name: Create database
     action: mysql_db db=BBdb state=present
+
+  # make user
+  - name: Create user
+    action: mysql_user name=apache passwd=12345 priv=BBdb.*:ALL state=present
