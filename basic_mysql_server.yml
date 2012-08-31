@@ -1,0 +1,36 @@
+# on all hosts, run as the user ec2-user???
+
+- name: simple mysql server setup
+  hosts: mysqlservers
+  user: ec2-user
+  sudo: True
+
+  # make these variables available inside of templates
+  # for when we use the 'template' action/module later on...
+
+  vars:
+    http_port: 80
+    max_clients: 200
+
+  # define the tasks that are part of this play...
+
+  tasks:
+
+  # make sure mysql is installed at the latest version
+
+  - name: install mysql
+    action: yum pkg=mysql state=latest
+
+  # make sure mysql-server is installed at the latest version
+
+  - name: install mysql-server
+    action: yum pkg=mysql-server state=latest
+
+  # make sure mysqld is running
+
+  - name: mysqld
+    action: service name=mysqld state=running
+
+  # make database
+  - name: Create database
+    action: mysql_db db=BBdb state=present
