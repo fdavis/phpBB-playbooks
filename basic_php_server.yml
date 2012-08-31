@@ -1,0 +1,54 @@
+# on all hosts, run as the user ec2-user???
+
+- name: simple apache php server setup
+  hosts: phpservers
+  user: fdavis
+  sudo: True
+
+  # make these variables available inside of templates
+  # for when we use the 'template' action/module later on...
+
+  vars:
+    http_port: 80
+    max_clients: 200
+
+  # define the tasks that are part of this play...
+
+  tasks:
+
+  # make sure httpd is installed at the latest version
+
+  - name: install httpd
+    action: yum pkg=httpd state=latest
+
+  # make sure php is installed at the latest version
+
+  - name: install php
+    action: yum pkg=php state=latest
+
+  # If and only if the file changes, restart apache at the very
+  # end of the playbook run
+
+  - name: simple index.php
+    action: template src=templates/phpinfo.php dest=/var/www/html/index.php
+    notify:
+    - restart apache
+
+  # make sure httpd is running
+
+  - name: httpd start
+    action: service name=httpd state=running
+
+  # handlers are only run when things change, at the very end of each
+  # play.  Let's define some.  The names are significant and must
+  # match the 'notify' sections above
+
+  handlers:
+
+    # this particular handler is run when some_random_foo.conf
+    # is changed, and only then
+
+    - name: restart apache
+      action: service name=httpd state=restarted
+
+
