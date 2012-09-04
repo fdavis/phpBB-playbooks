@@ -1,43 +1,43 @@
 # on all hosts, run as the user ec2-user???
 
 - name: simple apache php server setup
-  hosts: phpservers
-  user: fdavis
+  hosts: php-servers
+  user: ec2-user
   sudo: True
-
-  # make these variables available inside of templates
-  # for when we use the 'template' action/module later on...
-
-  vars:
-    http_port: 80
-    max_clients: 200
 
   # define the tasks that are part of this play...
 
   tasks:
 
   # make sure httpd is installed at the latest version
-
   - name: install httpd
     action: yum pkg=httpd state=latest
 
   # make sure php is installed at the latest version
-
   - name: install php
     action: yum pkg=php state=latest
+
+  # make sure unzip installed
+  - name: install unzip
+    action: yum pkg=unzip state=latest
 
   # If and only if the file changes, restart apache at the very
   # end of the playbook run
 
-  - name: simple index.php
-    action: template src=templates/phpinfo.php dest=/var/www/html/index.php
+  - name: copy over phpBB zip
+    action: copy src=templates/phpBB.zip dest=/var/www/html/phpBB.zip
     notify:
+    - unzip phpbb
     - restart apache
 
+  - name: copy over httpd.conf
+    action: copy src=templates/httpd.conf dest=/etc/httpd/conf/httpd.conf
+    notify:
+    - restart apache
   # make sure httpd is running
 
   - name: httpd start
-    action: service name=httpd state=running
+    action: service name=httpd state=running enabled=yes
 
   # handlers are only run when things change, at the very end of each
   # play.  Let's define some.  The names are significant and must
@@ -45,9 +45,11 @@
 
   handlers:
 
-    # this particular handler is run when some_random_foo.conf
+    # this particular handler is run when phpBB.zip
     # is changed, and only then
 
+    - name: unzip phpbb
+      action: command unzip /var/www/html/phpBB.zip -d /var/www/html/
     - name: restart apache
       action: service name=httpd state=restarted
 
