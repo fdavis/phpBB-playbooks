@@ -1,0 +1,103 @@
+# setup a phpBB server on a microinstance
+
+- name: phpBB server setup
+  hosts: web-server
+  user: ec2-user
+  sudo: True
+
+  vars_files:
+    - ./vars/sensitive_vars.ym
+
+  tasks:
+
+  # make sure httpd is installed at the latest version
+  #
+  - name: install httpd
+    action: yum pkg=httpd state=latest
+
+  # make sure php is installed at the latest version
+  - name: install php
+    action: yum pkg=php state=latest
+
+  # make sure unzip is installed at the latest version
+
+  - name: install unzip
+    action: yum pkg=unzip state=latest
+
+  # If and only if the file changes, restart apache and unzip
+  # the phpBB zip installation files at the very
+  # end of the playbook run
+
+  - name: copy over phpBB zip
+    action: copy src=templates/phpBB.zip dest=/var/www/html/phpBB.zip
+    notify:
+    - unzip phpbb
+    - restart apache
+
+  # changes document root --- should use in file module for this now
+
+  - name: copy over httpd.conf
+    action: copy src=templates/httpd.conf dest=/etc/httpd/conf/httpd.conf
+    notify:
+    - restart apache
+
+  # make sure httpd is running
+  
+  - name: httpd start
+    action: service name=httpd state=running enabled=yes
+
+  # make sure mysql is installed at the latest version
+
+  - name: install mysql
+    action: yum pkg=mysql state=latest
+
+  # make sure php-mysql is installed at the latest version
+
+  - name: install php-mysql
+    action: yum pkg=php-mysql state=latest
+
+  # make sure mysql-server is installed at the latest version
+
+  - name: install python-mysqldb
+    action: yum pkg=MySQL-python state=latest
+
+  # make sure mysql-server is installed at the latest version
+
+  - name: install mysql-server
+    action: yum pkg=mysql-server state=latest
+
+  # make sure mysqld is running
+  - name: mysqld
+    action: service name=mysqld state=running enabled=yes
+ 
+  # set root passwd
+  - name: Set root password
+    action: mysql_user name=root password=${root_password}
+    ignore_errors: True
+
+  # make database
+  - name: Create database
+    action: mysql_db db=BBdb state=present login_user=root login_password=${root_password}
+
+  # create user readonly
+  - name: create db user
+    action: mysql_user name=user password=${user_password} priv=*.*:SELECT  login_user=root login_password=${root_password}
+
+  # create user for apache/php
+  - name: create db user for php server
+    action: mysql_user name=php_server password=${php_password} priv=*.*:ALL  login_user=root login_password=${root_password}
+
+
+  # handlers are only run when things change, at the very end of each
+  # play.  Let's define some.  The names are significant and must
+  # match the 'notify' sections above
+
+  handlers:
+
+    # this particular handler is run when phpBB.zip
+    # is changed, and only then
+
+    - name: unzip phpbb
+      action: command unzip /var/www/html/phpBB.zip -d /var/www/html/
+    - name: restart apache
+      action: service name=httpd state=restarted
