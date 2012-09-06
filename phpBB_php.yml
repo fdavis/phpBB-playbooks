@@ -6,16 +6,26 @@
   sudo: True
 
   vars_files:
-    - ./vars/sensitive_vars.ym
+    - ./vars/sensitive_vars.yml
 
   tasks:
 
+  # update the system
+  - name: update 
+    action: command yum update -y
+
   # make sure httpd is installed at the latest version
-  #
+  
   - name: install httpd
     action: yum pkg=httpd state=latest
 
+  # make sure httpd is running
+  
+  - name: httpd start
+    action: service name=httpd state=running enabled=yes
+
   # make sure php is installed at the latest version
+
   - name: install php
     action: yum pkg=php state=latest
 
@@ -30,21 +40,28 @@
 
   - name: copy over phpBB zip
     action: copy src=templates/phpBB.zip dest=/var/www/html/phpBB.zip
-    notify:
-    - unzip phpbb
-    - restart apache
 
-  # changes document root --- should use in file module for this now
+  # unzip the files 
+
+  - name: unzip phpbb
+    action: command unzip phpBB.zip chdir=/var/www/html/ creates=/var/www/html/phpBB3/config.php
+
+  # chmod config.php for the install
+
+  - name: chmod 666 config.php
+    action: command chmod 0666 config.php chdir=/var/www/html/phpBB3
+
+  # chmod directories for the site
+
+  - name: chmod 777 site directores 
+    action: command chmod 0777 store/ cache/ files/ images/avatars/upload chdir=/var/www/html/phpBB3
+
+  # changes document root --- should use line file module for this
 
   - name: copy over httpd.conf
     action: copy src=templates/httpd.conf dest=/etc/httpd/conf/httpd.conf
     notify:
     - restart apache
-
-  # make sure httpd is running
-  
-  - name: httpd start
-    action: service name=httpd state=running enabled=yes
 
   # make sure mysql is installed at the latest version
 
@@ -70,7 +87,7 @@
   - name: mysqld
     action: service name=mysqld state=running enabled=yes
  
-  # set root passwd
+  # set root passwd --ignores because fails on reruns
   - name: Set root password
     action: mysql_user name=root password=${root_password}
     ignore_errors: True
@@ -94,10 +111,7 @@
 
   handlers:
 
-    # this particular handler is run when phpBB.zip
-    # is changed, and only then
+    # restart apache is run when http.conf changes
 
-    - name: unzip phpbb
-      action: command unzip /var/www/html/phpBB.zip -d /var/www/html/
     - name: restart apache
       action: service name=httpd state=restarted
