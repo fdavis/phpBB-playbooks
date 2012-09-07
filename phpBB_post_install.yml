@@ -11,3 +11,8 @@
  
   - name: chmod 644 config.php
     action: command chmod 0644 config.php chdir=/var/www/html/phpBB3
+
+  # remove the install directory from phpBB
+ 
+  - name: rm phpBB3/install
+    action: command rm -rf install chdir=/var/www/html/phpBB3
