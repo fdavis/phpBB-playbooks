@@ -1,8 +1,6 @@
 # BEFORE YOU USE THIS, REMOVE .EXAMPLE FROM THE NAME!!!
 # This file is meant to be an example of the sensitive_vars used
 # It is very strongly advised that you do not use these passwords
-# It is more strongly advised that you don't push actual passwords 
-# Or other sensitive data to the public repo
 ---
 user_password: somepass
 root_password: hj12357z
