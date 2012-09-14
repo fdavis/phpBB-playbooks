@@ -1,0 +1,104 @@
+# setup a phpBB server on a microinstance
+# ready for user to goto site and install
+
+- name: phpBB server setup
+  hosts: web-server
+  user: ec2-user
+  sudo: True
+
+  vars_files:
+    - ./vars/sensitive_vars.yml
+
+  tasks:
+
+  # update the system
+
+  - name: update 
+    action: command yum update -y
+
+  # install required packages at the latest version
+  # most for phpBB, python is for ansible modules
+  - name: install $item
+    action: yum pkg=$item state=latest
+    with_items:
+    - httpd
+    - php
+    - php-gd
+    - php-mysql
+    - MySQL-python
+    - mysql
+    - mysql-server
+    - ImageMagick
+    - unzip
+    - gzip
+    - tar
+  
+  
+  # make sure httpd and mysqld are running
+  
+  - name: service start $item
+    action: service name=$item state=running enabled=yes
+    with_items:
+    - httpd
+    - mysqld
+
+  # copy over phpBB zip
+
+  - name: copy over phpBB zip
+    action: copy src=templates/phpBB.zip dest=/var/www/html/phpBB.zip
+
+  # unzip the files 
+
+  - name: unzip phpbb
+    action: command unzip phpBB.zip chdir=/var/www/html/ creates=/var/www/html/phpBB3/config.php
+
+  # chmod config.php for the install
+
+  - name: chmod 666 config.php
+    action: command chmod 0666 config.php chdir=/var/www/html/phpBB3
+
+  # chmod directories for the site --user upload space, etc...
+
+  - name: chmod 777 site directores $item 
+    action: command chmod 0777 $item chdir=/var/www/html/phpBB3
+    with_items:
+    - store/
+    - cache/
+    - files/
+    - images/avatars/upload
+
+  # changes document root --- should use line file module for this
+
+  - name: copy over httpd.conf
+    action: copy src=templates/httpd.conf dest=/etc/httpd/conf/httpd.conf
+    notify:
+    - restart apache
+
+  # set root passwd --ignores because fails on reruns
+
+  - name: Set root password
+    action: mysql_user name=root password=${root_password}
+    ignore_errors: True
+
+  # make database
+
+  - name: Create database
+    action: mysql_db db=BBdb state=present login_user=root login_password=${root_password}
+
+  # create user readonly
+  
+  - name: create db user
+    action: mysql_user name=user password=${user_password} priv=*.*:SELECT  login_user=root login_password=${root_password}
+
+  # create user for apache/php
+
+  - name: create db user for php server
+    action: mysql_user name=php_server password=${php_password} priv=*.*:ALL  login_user=root login_password=${root_password}
+
+
+  handlers:
+
+    # restart apache is run when http.conf changes
+
+    - name: restart apache
+      action: service name=httpd state=restarted
